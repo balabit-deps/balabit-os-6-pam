@@ -1,0 +1,127 @@
+Description: Deprecate pam_unix' explicit "usergroups" option and instead read it from /etc/login.def's "USERGROUP_ENAB" option if umask is only defined there. This restores compatibility with the pre-PAM behaviour of login. See https://blueprints.launchpad.net/ubuntu/+spec/umask-to-0002.
+Author: Martin Pitt <martin.pitt@ubuntu.com>
+Bug-Debian: http://bugs.debian.org/583958
+
+=== modified file 'modules/pam_umask/pam_umask.c'
+Index: pam.ubuntu/modules/pam_umask/pam_umask.c
+===================================================================
+--- pam.ubuntu.orig/modules/pam_umask/pam_umask.c
++++ pam.ubuntu/modules/pam_umask/pam_umask.c
+@@ -87,7 +87,7 @@
+ }
+ 
+ static char *
+-search_key (const char *filename)
++search_key (const char *filename, const char *key)
+ {
+   FILE *fp;
+   char *buf = NULL;
+@@ -146,7 +146,7 @@
+         while (isspace ((int)*cp) || *cp == '=')
+           ++cp;
+ 
+-      if (strcasecmp (tmp, "UMASK") == 0)
++      if (strcasecmp (tmp, key) == 0)
+ 	{
+ 	  retval = strdup (cp);
+ 	  break;
+@@ -163,15 +163,34 @@
+ get_options (const pam_handle_t *pamh, options_t *options,
+ 	     int argc, const char **argv)
+ {
++  char *result;
++
+   memset (options, 0, sizeof (options_t));
+   /* Parse parameters for module */
+   for ( ; argc-- > 0; argv++)
+     parse_option (pamh, *argv, options);
+ 
+   if (options->umask == NULL)
+-    options->umask = search_key (LOGIN_DEFS);
++    {
++      options->umask = search_key (LOGIN_DEFS, "UMASK");
++      /* login.defs' USERGROUPS_ENAB will modify the UMASK setting there by way
++       * of usergroups; but we don't want it to influence umask definitions
++       * from other places (like GECOS). This restores compatibility with
++       * shadow from the pre-PAM age.
++       */ 
++      if (options->umask != NULL)
++	{
++	  result = search_key (LOGIN_DEFS, "USERGROUPS_ENAB");
++	  if (result != NULL)
++	    {
++	      options->usergroups = (strcasecmp (result, "yes") == 0);
++	      free (result);
++	    }
++	}
++    }
++
+   if (options->umask == NULL)
+-    options->umask = search_key (LOGIN_CONF);
++    options->umask = search_key (LOGIN_CONF, "UMASK");
+ 
+   return 0;
+ }
+Index: pam.ubuntu/modules/pam_umask/pam_umask.8.xml
+===================================================================
+--- pam.ubuntu.orig/modules/pam_umask/pam_umask.8.xml
++++ pam.ubuntu/modules/pam_umask/pam_umask.8.xml
+@@ -63,7 +63,8 @@
+         </listitem>
+         <listitem>
+           <para>
+-            UMASK entry from /etc/login.defs
++            UMASK entry from /etc/login.defs (influenced by USERGROUPS_ENAB in
++	    /etc/login.defs)
+           </para>
+         </listitem>
+       </itemizedlist>
+@@ -115,6 +116,11 @@
+               If the user is not root and the username is the same as
+               primary group name, the umask group bits are set to be the
+               same as owner bits (examples: 022 -> 002, 077 -> 007).
++	      Note that using this option explicitly is discouraged. pam_umask
++	      enables this functionality by default if /etc/login.defs enables
++	      USERGROUPS_ENAB, and the umask is not set explicitly in other
++	      places than /etc/login.defs (this is compatible with login's
++	      behaviour without PAM).
+             </para>
+           </listitem>
+         </varlistentry>
+Index: pam.ubuntu/modules/pam_umask/pam_umask.8
+===================================================================
+--- pam.ubuntu.orig/modules/pam_umask/pam_umask.8
++++ pam.ubuntu/modules/pam_umask/pam_umask.8
+@@ -2,12 +2,12 @@
+ .\"     Title: pam_umask
+ .\"    Author: [see the "AUTHOR" section]
+ .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+-.\"      Date: 09/19/2013
++.\"      Date: 01/16/2014
+ .\"    Manual: Linux-PAM Manual
+ .\"    Source: Linux-PAM Manual
+ .\"  Language: English
+ .\"
+-.TH "PAM_UMASK" "8" "09/19/2013" "Linux-PAM Manual" "Linux\-PAM Manual"
++.TH "PAM_UMASK" "8" "01/16/2014" "Linux-PAM Manual" "Linux\-PAM Manual"
+ .\" -----------------------------------------------------------------
+ .\" * Define some portability stuff
+ .\" -----------------------------------------------------------------
+@@ -79,7 +79,7 @@
+ .sp -1
+ .IP \(bu 2.3
+ .\}
+-UMASK entry from /etc/login\&.defs
++UMASK entry from /etc/login\&.defs (influenced by USERGROUPS_ENAB in /etc/login\&.defs)
+ .RE
+ .PP
+ The GECOS field is split on comma \*(Aq,\*(Aq characters\&. The module also in addition to the umask= entry recognizes pri= entry, which sets the nice priority value for the session, and ulimit= entry, which sets the maximum size of files the processes in the session can create\&.
+@@ -98,7 +98,7 @@
+ .PP
+ \fBusergroups\fR
+ .RS 4
+-If the user is not root and the username is the same as primary group name, the umask group bits are set to be the same as owner bits (examples: 022 \-> 002, 077 \-> 007)\&.
++If the user is not root and the username is the same as primary group name, the umask group bits are set to be the same as owner bits (examples: 022 \-> 002, 077 \-> 007)\&. Note that using this option explicitly is discouraged\&. pam_umask enables this functionality by default if /etc/login\&.defs enables USERGROUPS_ENAB, and the umask is not set explicitly in other places than /etc/login\&.defs (this is compatible with login\*(Aqs behaviour without PAM)\&.
+ .RE
+ .PP
+ \fBumask=\fR\fB\fImask\fR\fR
