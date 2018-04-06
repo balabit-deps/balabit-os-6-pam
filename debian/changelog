@@ -1,3 +1,10 @@
+pam (1.1.8-3.2ubuntu2.1) xenial; urgency=medium
+
+  * d/local/pam_getenv:
+    - Fix "Unescaped left brace in regex" with Perl 5.22. (LP: #1538284)
+
+ -- Seyeong Kim <seyeong.kim@canonical.com>  Thu, 05 Apr 2018 17:33:57 -0700
+
 pam (1.1.8-3.2ubuntu2) xenial; urgency=medium
 
   * debian/patches-applied/cve-2015-3238.patch: removed manpage changes
