@@ -30,3 +30,4 @@ extrausers.patch
 cve-2013-7041.patch
 cve-2014-2583.patch
 pam-limits-nofile-fd-setsize-cap
+lp1666203-tty-audit-failed-fix

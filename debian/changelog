@@ -1,3 +1,18 @@
+pam (1.1.8-3.2ubuntu2.3) xenial; urgency=medium
+
+  * Move patch fixing LP: #1666203 from debian/patches to
+    debian/patches-applied so it actually gets applied.
+  * debian/libpam-modules.postinst: Add /snap/bin to $PATH in
+    /etc/environment. (LP: #1659719)
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Thu, 01 Oct 2020 10:03:21 +1300
+
+pam (1.1.8-3.2ubuntu2.2) xenial; urgency=medium
+
+  * Fix: pam_tty_audit failed in pam_open_session (LP: #1666203)
+
+ -- Don van der Haghen <don@haghen.com>  Fri, 01 Mar 2019 09:36:08 +0000
+
 pam (1.1.8-3.2ubuntu2.1) xenial; urgency=medium
 
   * d/local/pam_getenv:
